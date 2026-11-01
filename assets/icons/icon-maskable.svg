@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="语音倒计时播报器">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#172A3E"/>
+      <stop offset="1" stop-color="#09121D"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="0" fill="url(#bg)"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M374.6 279.0 A143.5 143.5 0 0 1 316.9 375.1" stroke="#22D3EE" stroke-opacity="0.92" stroke-width="19.5"/>
+    <path d="M405.5 283.3 A174.7 174.7 0 0 1 335.2 400.4" stroke="#22D3EE" stroke-opacity="0.65" stroke-width="19.5"/>
+    <path d="M340.1 259.0 A107.6 107.6 0 1 1 286.3 165.8"  stroke="#22D3EE" stroke-width="26.5"/>
+  </g>
+  <rect x="214.6" y="117.8" width="35.9" height="25.0" rx="7.8" fill="#22D3EE"/>
+  <path d="M232.5 265.2 V 181.0" stroke="#E2FAFF" stroke-width="17.2" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,7 @@
+# 项目工作记忆（含个人流程笔记，不公开）
+.workbuddy/
+
+# 系统 / 编译产物
+.DS_Store
+*.pyc
+__pycache__/

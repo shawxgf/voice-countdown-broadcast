@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>语音倒计时播报器</title>
+<meta name="theme-color" content="#0A1420">
+<meta name="description" content="支持百分秒的语音倒计时播报器：大于 10 秒每 10 秒播报，10 秒以内每 1 秒播报，可切换播报人声。">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="assets/icons/favicon.png" sizes="64x64">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<style>
+:root{
+  --bg:#0A1420; --bg2:#142438;
+  --card:#111E2E; --card2:#16273A;
+  --line:#22354D; --fg:#E8F3FA; --dim:#8CA3B8; --dim2:#63798F;
+  --accent:#22D3EE; --accent2:#67E8F9;
+  --soft:rgba(34,211,238,.12);
+  --warn:#FBBF24; --danger:#F87171;
+  --r:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:radial-gradient(120% 78% at 50% 0%, var(--bg2) 0%, var(--bg) 62%) fixed;
+  color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"HarmonyOS Sans SC","Noto Sans CJK SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:15px;line-height:1.5;
+  padding:env(safe-area-inset-top) 0 calc(24px + env(safe-area-inset-bottom));
+  min-height:100vh;
+}
+.wrap{max-width:480px;margin:0 auto;padding:14px 14px 0}
+
+/* ---------- 顶栏 ---------- */
+header{display:flex;align-items:center;gap:10px;padding:6px 2px 14px}
+header img{width:38px;height:38px;border-radius:9px;display:block}
+.brand{font-size:15px;font-weight:600;letter-spacing:.02em}
+.brand small{display:block;font-weight:400;font-size:11.5px;color:var(--dim2);letter-spacing:0}
+.install-btn{
+  margin-left:auto;display:none;align-items:center;gap:6px;
+  background:var(--soft);color:var(--accent);border:1px solid rgba(34,211,238,.35);
+  padding:7px 12px;border-radius:999px;font-size:13px;cursor:pointer;
+}
+
+/* ---------- 计时显示 ---------- */
+.board{
+  background:linear-gradient(180deg,var(--card2),var(--card));
+  border:1px solid var(--line);border-radius:18px;
+  padding:20px 16px 16px;text-align:center;
+}
+.clock{
+  font-size:clamp(52px,19vw,104px);font-weight:700;line-height:1;
+  font-variant-numeric:tabular-nums;font-feature-settings:"tnum";
+  letter-spacing:-.02em;display:flex;align-items:baseline;justify-content:center;gap:2px;
+  color:#F2FAFF;
+}
+.clock .cc{font-size:.52em;color:var(--accent2);opacity:.95;letter-spacing:0}
+.clock .sep{opacity:.32;font-weight:400;margin:0 1px}
+.board.fin .clock{color:var(--danger)}
+.board.run .clock{color:#FFFFFF}
+.bar{height:5px;border-radius:99px;background:#0C1826;margin:16px 4px 0;overflow:hidden}
+.bar i{display:block;height:100%;width:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),#5EEAD4);transition:width .12s linear}
+.sub{margin-top:10px;font-size:12.5px;color:var(--dim2);font-variant-numeric:tabular-nums;min-height:19px}
+.sub b{color:var(--dim);font-weight:500}
+
+/* ---------- 卡片 ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-top:12px}
+.card h2{margin:0 0 10px;font-size:12.5px;font-weight:600;color:var(--dim);letter-spacing:.06em;display:flex;align-items:center;gap:8px}
+.card h2::after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* ---------- 时间输入 ---------- */
+.digits{display:flex;align-items:center;justify-content:center;gap:5px}
+.dig{
+  width:44px;height:56px;text-align:center;font-size:24px;font-weight:600;
+  background:#0C1826;color:var(--fg);border:1px solid var(--line);border-radius:10px;
+  font-variant-numeric:tabular-nums;outline:none;
+}
+.dig:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--soft)}
+.dsep{font-size:22px;color:var(--dim2);margin:0 1px}
+.fixed{color:var(--dim2);font-size:20px;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.hint{margin-top:8px;text-align:center;font-size:11.5px;color:var(--dim2)}
+.presets{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;justify-content:center}
+.presets button{
+  background:#0C1826;border:1px solid var(--line);color:var(--dim);
+  padding:6px 11px;border-radius:999px;font-size:12.5px;cursor:pointer;
+}
+.presets button:active{background:var(--soft);color:var(--accent);border-color:rgba(34,211,238,.35)}
+
+/* ---------- 控制按钮 ---------- */
+.ctrl{display:flex;gap:10px;margin-top:12px}
+.btn{
+  flex:1;padding:14px;border-radius:12px;border:1px solid transparent;
+  font-size:16px;font-weight:600;cursor:pointer;transition:.12s;
+}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.primary{background:linear-gradient(180deg,#2DD9F0,#0FB6D0);color:#04212A;box-shadow:0 6px 18px rgba(34,211,238,.18)}
+.btn.primary.pause{background:linear-gradient(180deg,#FBBF24,#E9A20C);color:#2A1B00;box-shadow:0 6px 18px rgba(251,191,36,.16)}
+.btn.ghost{background:#0C1826;border-color:var(--line);color:var(--dim);flex:0 0 84px}
+
+/* ---------- 表单 ---------- */
+.row{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+.row:last-child{margin-bottom:0}
+.row label{flex:0 0 74px;font-size:13px;color:var(--dim)}
+select,input[type=text]{
+  flex:1;min-width:0;background:#0C1826;color:var(--fg);border:1px solid var(--line);
+  border-radius:10px;padding:9px 10px;font-size:13.5px;outline:none;font-family:inherit;
+}
+select:focus,input[type=text]:focus{border-color:var(--accent)}
+input[type=range]{flex:1;min-width:0;accent-color:var(--accent);background:transparent}
+.val{flex:0 0 40px;text-align:right;font-size:12.5px;color:var(--dim2);font-variant-numeric:tabular-nums}
+.mini{
+  background:#0C1826;border:1px solid var(--line);color:var(--dim);
+  padding:8px 11px;border-radius:10px;font-size:12.5px;cursor:pointer;white-space:nowrap;
+}
+.mini:active{color:var(--accent)}
+.sw{display:flex;align-items:center;justify-content:space-between;padding:7px 0;font-size:13.5px;color:var(--dim)}
+.sw input{appearance:none;width:42px;height:24px;border-radius:99px;background:#23384F;position:relative;transition:.18s;flex:0 0 auto;margin:0}
+.sw input::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#7C93A8;transition:.18s}
+.sw input:checked{background:rgba(34,211,238,.32)}
+.sw input:checked::after{left:20px;background:var(--accent)}
+.note{margin-top:10px;font-size:11.5px;color:var(--dim2);line-height:1.6}
+.note.warn{color:var(--warn)}
+.foot{margin:14px 2px 0;font-size:11.5px;color:var(--dim2);line-height:1.7;text-align:center}
+
+/* ---------- toast ---------- */
+.toast{
+  position:fixed;left:50%;bottom:32px;transform:translate(-50%,14px);
+  background:rgba(8,16,26,.94);border:1px solid var(--line);color:var(--fg);
+  padding:9px 16px;border-radius:99px;font-size:13px;opacity:0;pointer-events:none;
+  transition:.22s;z-index:9;max-width:88vw;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <img src="assets/icons/icon-192.png" alt="应用图标">
+    <div class="brand">语音倒计时播报器<small>分 : 秒 : 百分秒</small></div>
+    <button class="install-btn" id="installBtn" type="button">安装到桌面</button>
+  </header>
+
+  <!-- 计时显示 -->
+  <section class="board" id="board">
+    <div class="clock">
+      <span id="cmm">00</span><span class="sep">:</span><span id="css">00</span><span class="sep">:</span><span class="cc" id="ccc">00</span>
+    </div>
+    <div class="bar"><i id="bar"></i></div>
+    <div class="sub" id="sub">剩余 00:00 · 下次播报 --:--</div>
+  </section>
+
+  <!-- 时间设置 -->
+  <section class="card">
+    <h2>倒计时设置</h2>
+    <div class="digits">
+      <input class="dig" id="d0" inputmode="numeric" maxlength="1" value="0" autocomplete="off" aria-label="分的十位">
+      <input class="dig" id="d1" inputmode="numeric" maxlength="1" value="1" autocomplete="off" aria-label="分的个位">
+      <span class="dsep">:</span>
+      <input class="dig" id="d2" inputmode="numeric" maxlength="1" value="0" autocomplete="off" aria-label="秒的十位">
+      <input class="dig" id="d3" inputmode="numeric" maxlength="1" value="0" autocomplete="off" aria-label="秒的个位">
+      <span class="dsep">:</span>
+      <span class="fixed">00</span>
+    </div>
+    <div class="hint">前四位为「分:秒」，末两位为百分秒，固定从 00 起倒计</div>
+    <div class="presets">
+      <button type="button" data-sec="30">30 秒</button>
+      <button type="button" data-sec="60">1 分钟</button>
+      <button type="button" data-sec="180">3 分钟</button>
+      <button type="button" data-sec="300">5 分钟</button>
+      <button type="button" data-sec="600">10 分钟</button>
+      <button type="button" data-sec="900">15 分钟</button>
+    </div>
+    <div class="ctrl">
+      <button class="btn primary" id="btnMain" type="button">开始</button>
+      <button class="btn ghost" id="btnReset" type="button">重置</button>
+    </div>
+  </section>
+
+  <!-- 语音设置 -->
+  <section class="card">
+    <h2>播报语音</h2>
+    <div class="row">
+      <label for="voice">人声</label>
+      <select id="voice"></select>
+      <button class="mini" id="btnTest" type="button">试听</button>
+      <button class="mini" id="btnRefresh" type="button" title="重新读取系统语音列表">刷新</button>
+    </div>
+    <div class="row">
+      <label for="rate">语速</label>
+      <input type="range" id="rate" min="0.6" max="1.8" step="0.1" value="1">
+      <span class="val" id="rateV">1.0</span>
+    </div>
+    <div class="row">
+      <label for="pitch">音调</label>
+      <input type="range" id="pitch" min="0.6" max="1.4" step="0.1" value="1">
+      <span class="val" id="pitchV">1.0</span>
+    </div>
+    <div class="row">
+      <label for="vol">音量</label>
+      <input type="range" id="vol" min="0.2" max="1" step="0.05" value="1">
+      <span class="val" id="volV">1.0</span>
+    </div>
+    <div class="row">
+      <label for="mode">播报内容</label>
+      <select id="mode">
+        <option value="num">纯数字（50）</option>
+        <option value="sec" selected>数字＋秒（50秒）</option>
+        <option value="prefix">还有 50 秒</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="endText">结束提示</label>
+      <input type="text" id="endText" value="时间到" maxlength="20" placeholder="留空则不播报">
+    </div>
+    <div class="sw"><span>倒计时开始时先播报一次</span><input type="checkbox" id="swStart" checked></div>
+    <div class="sw"><span>结束时蜂鸣提示音</span><input type="checkbox" id="swBeep" checked></div>
+    <div class="sw"><span>最后 10 秒播报时振动</span><input type="checkbox" id="swVib" checked></div>
+    <div class="sw"><span>计时中保持屏幕常亮</span><input type="checkbox" id="swWake" checked></div>
+    <div class="note" id="voiceNote"></div>
+  </section>
+
+  <p class="foot">
+    剩余时间 &gt; 10 秒：每经过一个 10 秒节点播报一次（如 50、40、30…）<br>
+    剩余时间 ≤ 10 秒：每整秒播报一次（10、9、8…1），归零播报结束提示
+  </p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var K = { cfg:"countdown.broadcast.cfg", voice:"countdown.broadcast.voice", time:"countdown.broadcast.time" };
+
+  /* ---------------- 配置 ---------------- */
+  var CFG = {
+    rate:1, pitch:1, vol:1, mode:"sec", endText:"时间到",
+    swStart:true, swBeep:true, swVib:true, swWake:true
+  };
+  try{ var saved = JSON.parse(localStorage.getItem(K.cfg) || "{}"); for (var k in saved){ if (k in CFG) CFG[k] = saved[k]; } }catch(e){}
+  function saveCfg(){ try{ localStorage.setItem(K.cfg, JSON.stringify(CFG)); }catch(e){} }
+
+  /* ---------------- 状态 ---------------- */
+  var S = {
+    total:0, endAt:0, remain:0,
+    running:false, paused:false, finished:false,
+    last10:null, last1:null, timer:null, wake:null, actx:null
+  };
+
+  var els = {
+    mm:$("cmm"), ss:$("css"), cc:$("ccc"), bar:$("bar"), sub:$("sub"), board:$("board"),
+    btnMain:$("btnMain"), btnReset:$("btnReset"), toast:$("toast")
+  };
+  var digits = [$("d0"), $("d1"), $("d2"), $("d3")];
+
+  function pad(n, len){ n = String(n); while (n.length < (len || 2)) n = "0" + n; return n; }
+
+  /* ---------------- 时间输入 ---------------- */
+  function readSec(){
+    var mm = (+digits[0].value || 0) * 10 + (+digits[1].value || 0);
+    var ss = (+digits[2].value || 0) * 10 + (+digits[3].value || 0);
+    return mm * 60 + ss;
+  }
+  function setSec(sec){
+    sec = Math.max(0, Math.min(5999, Math.floor(sec)));
+    var mm = Math.floor(sec / 60), ss = sec % 60;
+    digits[0].value = Math.floor(mm / 10) % 10;
+    digits[1].value = mm % 10;
+    digits[2].value = Math.floor(ss / 10);
+    digits[3].value = ss % 10;
+    saveTime();
+    if (S.paused) toast("暂停中改时间不会生效，请先按重置");
+    if (!S.running && !S.paused && !S.finished) render(readSec() * 1000);
+  }
+  function saveTime(){ try{ localStorage.setItem(K.time, String(readSec())); }catch(e){} }
+
+  digits.forEach(function(el, i){
+    el.addEventListener("input", function(){
+      var v = el.value.replace(/\D/g, "").slice(-1);
+      if (i === 2 && +v > 5) v = "5";               // 秒的十位最大 5
+      el.value = v === "" ? "0" : v;
+      saveTime();
+      if (!S.running && !S.paused && !S.finished) render(readSec() * 1000);
+      var nx = digits[i + 1];
+      if (nx){ nx.focus(); nx.select(); }
+    });
+    el.addEventListener("focus", function(){ el.select(); });
+    el.addEventListener("keydown", function(e){
+      if (e.key === "Backspace"){
+        e.preventDefault();
+        el.value = "0";
+        var pv = digits[i - 1];
+        if (pv){ pv.focus(); pv.select(); }
+        saveTime();
+        if (!S.running && !S.paused && !S.finished) render(readSec() * 1000);
+      } else if (e.key === "ArrowLeft"){ e.preventDefault(); if (digits[i-1]) digits[i-1].focus(); }
+      else if (e.key === "ArrowRight"){ e.preventDefault(); if (digits[i+1]) digits[i+1].focus(); }
+      else if (e.key === "ArrowUp" || e.key === "ArrowDown"){
+        e.preventDefault();
+        var max = (i === 2) ? 5 : 9;
+        var d = +el.value + (e.key === "ArrowUp" ? 1 : -1);
+        if (d > max) d = 0; if (d < 0) d = max;
+        el.value = String(d);
+        saveTime();
+        if (!S.running && !S.paused && !S.finished) render(readSec() * 1000);
+      }
+    });
+  });
+
+  document.querySelectorAll(".presets button").forEach(function(b){
+    b.addEventListener("click", function(){ setSec(+b.dataset.sec); });
+  });
+
+  /* ---------------- 语音 ---------------- */
+  var voices = [];
+  var hasTTS = ("speechSynthesis" in window) && ("SpeechSynthesisUtterance" in window);
+
+  function isZh(v){ return /zh|cmn|chinese|普通话|中文/i.test((v.lang || "") + " " + (v.name || "")); }
+  function currentVoice(){
+    var uri = "";
+    try{ uri = localStorage.getItem(K.voice) || ""; }catch(e){}
+    for (var i = 0; i < voices.length; i++){ if (voices[i].voiceURI === uri) return voices[i]; }
+    for (var j = 0; j < voices.length; j++){ if (isZh(voices[j])) return voices[j]; }
+    return voices.length ? voices[0] : null;
+  }
+  function fillVoices(){
+    var sel = $("voice");
+    var keep = sel.value;
+    sel.innerHTML = "";
+    if (!voices.length){
+      var o = new Option("未检测到系统语音（请先安装 TTS 引擎）", "");
+      sel.appendChild(o);
+    } else {
+      var zh = voices.filter(isZh);
+      var other = voices.filter(function(v){ return !isZh(v); });
+      var g1 = document.createElement("optgroup"); g1.label = "中文语音（推荐）";
+      zh.forEach(function(v){ g1.appendChild(new Option(displayName(v), v.voiceURI)); });
+      if (zh.length) sel.appendChild(g1);
+      if (other.length){
+        var g2 = document.createElement("optgroup"); g2.label = "其他语音";
+        other.forEach(function(v){ g2.appendChild(new Option(displayName(v), v.voiceURI)); });
+        sel.appendChild(g2);
+      }
+      var cv = currentVoice();
+      if (cv) sel.value = cv.voiceURI;
+      if (keep && sel.querySelector('option[value="' + keep.replace(/"/g, "") + '"]')) sel.value = keep;
+    }
+    updateNote();
+  }
+  function displayName(v){
+    var tag = v.localService ? "本地" : "云端";
+    return v.name + "（" + v.lang + "·" + tag + "）";
+  }
+  function updateNote(){
+    var n = $("voiceNote");
+    if (!hasTTS){ n.className = "note warn"; n.textContent = "当前浏览器不支持网页语音合成，无法播报，请改用 Chrome / Edge 浏览器。"; return; }
+    if (!voices.length){
+      n.className = "note warn";
+      n.textContent = "暂未读取到语音列表：请在手机「设置 → 系统 → 语言和输入法 → 文字转语音」中确认已启用 TTS 引擎，然后点击上方「刷新」。";
+      return;
+    }
+    var zh = voices.filter(isZh).length;
+    n.className = "note";
+    n.textContent = "已加载 " + voices.length + " 个人声（中文 " + zh + " 个）。可切换人声后点「试听」确认效果。";
+  }
+  function loadVoices(){
+    if (!hasTTS) return;
+    var v = window.speechSynthesis.getVoices();
+    if (v && v.length){ voices = v.slice(); fillVoices(); }
+  }
+  if (hasTTS){
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    setTimeout(loadVoices, 300);
+    setTimeout(loadVoices, 1200);
+  } else {
+    fillVoices();
+  }
+
+  function speak(text){
+    if (!hasTTS || !text) return;
+    try{
+      var ss = window.speechSynthesis;
+      ss.cancel();
+      if (ss.paused) ss.resume();
+      var u = new SpeechSynthesisUtterance(text);
+      var v = currentVoice();
+      if (v){ u.voice = v; u.lang = v.lang; } else { u.lang = "zh-CN"; }
+      u.rate = CFG.rate; u.pitch = CFG.pitch; u.volume = CFG.vol;
+      ss.speak(u);
+    }catch(e){}
+  }
+  function sayNumber(n){
+    if (CFG.mode === "num") return String(n);
+    if (CFG.mode === "prefix") return "还有" + n + "秒";
+    return n + "秒";
+  }
+
+  /* ---------------- 提示音 / 振动 ---------------- */
+  function audio(){
+    if (!S.actx){
+      try{ S.actx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ return null; }
+    }
+    if (S.actx.state === "suspended"){ try{ S.actx.resume(); }catch(e){} }
+    return S.actx;
+  }
+  function tone(ctx, at, dur, freq){
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "sine"; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.linearRampToValueAtTime(0.22, at + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(at); o.stop(at + dur + 0.02);
+  }
+  function beepEnd(){
+    var c = audio(); if (!c) return;
+    var t = c.currentTime + 0.02;
+    tone(c, t, 0.16, 880);
+    tone(c, t + 0.24, 0.16, 880);
+    tone(c, t + 0.48, 0.26, 1320);
+  }
+  function buzz(p){ if (navigator.vibrate){ try{ navigator.vibrate(p); }catch(e){} } }
+
+  /* ---------------- 屏幕常亮 ---------------- */
+  function wakeOn(){
+    if (!CFG.swWake || !("wakeLock" in navigator)) return;
+    navigator.wakeLock.request("screen").then(function(l){
+      S.wake = l;
+      try{ l.addEventListener("release", function(){ S.wake = null; }); }catch(e){}
+    }).catch(function(){});
+  }
+  function wakeOff(){ if (S.wake){ try{ S.wake.release(); }catch(e){} S.wake = null; } }
+  document.addEventListener("visibilitychange", function(){
+    if (document.visibilityState === "visible" && S.running) wakeOn();
+  });
+
+  /* ---------------- 渲染 ---------------- */
+  function render(ms){
+    ms = Math.max(0, ms);
+    var mm = Math.floor(ms / 60000);
+    var ss = Math.floor((ms % 60000) / 1000);
+    var cc = Math.floor((ms % 1000) / 10);
+    els.mm.textContent = pad(mm);
+    els.ss.textContent = pad(ss);
+    els.cc.textContent = pad(cc);
+    if (S.total > 0 && !S.finished){
+      els.bar.style.width = (ms / S.total * 100).toFixed(2) + "%";
+    } else {
+      els.bar.style.width = "100%";
+    }
+    // 下次播报时刻
+    var txt = "";
+    if (S.running && ms > 0){
+      var t = nextTick(ms);
+      txt = "剩余 " + fmt(t.total) + " · 下次播报 " + fmt(t.next);
+    } else if (!S.finished){
+      txt = "已设定 " + fmt(ms) + " · 就绪";
+    } else {
+      txt = "倒计时结束";
+    }
+    els.sub.innerHTML = txt;
+  }
+  function fmt(ms){
+    ms = Math.max(0, ms);
+    return pad(Math.floor(ms / 60000)) + ":" + pad(Math.floor((ms % 60000) / 1000));
+  }
+  function nextTick(r){
+    if (r > 10000) return { total:r, next:(Math.ceil(r / 10000) - 1) * 10000 };
+    return { total:r, next:(Math.ceil(r / 1000) - 1) * 1000 };
+  }
+
+  function updateButtons(){
+    if (S.running){ els.btnMain.textContent = "暂停"; els.btnMain.classList.add("pause"); }
+    else if (S.paused){ els.btnMain.textContent = "继续"; els.btnMain.classList.add("pause"); }
+    else { els.btnMain.textContent = "开始"; els.btnMain.classList.remove("pause"); }
+    els.btnMain.disabled = false;
+    els.board.className = "board" + (S.running ? " run" : "") + (S.finished ? " fin" : "");
+  }
+
+  function toast(msg){
+    els.toast.textContent = msg;
+    els.toast.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function(){ els.toast.classList.remove("show"); }, 2200);
+  }
+
+  /* ---------------- 计时控制 ---------------- */
+  function start(){
+    var total = readSec() * 1000;
+    if (total <= 0){ toast("请先设置大于 0 的时间"); return; }
+    if (!hasTTS) toast("当前浏览器不支持语音播报");
+
+    if (S.paused && S.remain > 0){
+      S.endAt = Date.now() + S.remain;              // 继续：沿用原进度
+    } else {
+      S.total = total; S.remain = total;
+      S.endAt = Date.now() + total;
+      S.last10 = null; S.last1 = null;
+      if (total > 10000){ S.last10 = Math.ceil(total / 10000); }
+      else { S.last1 = Math.ceil(total / 1000); }
+      if (CFG.swStart) speak(sayNumber(Math.ceil(total / 1000)));
+    }
+    S.running = true; S.paused = false; S.finished = false;
+    clearInterval(S.timer);
+    S.timer = setInterval(tick, 30);
+    audio();
+    wakeOn();
+    updateButtons();
+  }
+  function pause(){
+    if (!S.running) return;
+    S.remain = Math.max(0, S.endAt - Date.now());
+    clearInterval(S.timer); S.timer = null;
+    S.running = false; S.paused = true;
+    wakeOff();
+    updateButtons();
+  }
+  function reset(){
+    clearInterval(S.timer); S.timer = null;
+    S.running = false; S.paused = false; S.finished = false;
+    S.remain = 0; S.last10 = null; S.last1 = null; S.total = 0;
+    try{ window.speechSynthesis.cancel(); }catch(e){}
+    wakeOff();
+    render(readSec() * 1000);
+    updateButtons();
+  }
+  function finish(){
+    clearInterval(S.timer); S.timer = null;
+    S.running = false; S.paused = false; S.finished = true;
+    render(0);
+    if (CFG.endText) speak(CFG.endText);
+    if (CFG.swBeep) beepEnd();
+    if (CFG.swVib) buzz([300, 120, 300]);
+    wakeOff();
+    updateButtons();
+  }
+  function announce(n){
+    speak(sayNumber(n));
+    if (CFG.swVib && n <= 10) buzz(35);
+  }
+
+  function tick(){
+    var r = S.endAt - Date.now();
+    if (r <= 0){ finish(); return; }
+    render(r);
+    if (r > 10000){
+      // 10 秒档：每跨过一个 10 秒节点播报
+      var b = Math.ceil(r / 10000);
+      if (S.last10 !== null && b < S.last10) announce(b * 10);
+      S.last10 = b; S.last1 = null;
+    } else {
+      // 1 秒档：每跨过一个整秒播报
+      var b1 = Math.ceil(r / 1000);
+      if (S.last1 === null){
+        if (S.last10 !== null) announce(10);        // 刚跨过 10 秒节点
+      } else if (b1 < S.last1){
+        announce(b1);
+      }
+      S.last1 = b1;
+    }
+  }
+
+  els.btnMain.addEventListener("click", function(){
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();  // 收起数字键盘
+    if (S.running) pause();
+    else if (S.paused) start();
+    else start();
+  });
+  els.btnReset.addEventListener("click", reset);
+
+  /* ---------------- 设置交互 ---------------- */
+  $("voice").addEventListener("change", function(){
+    try{ localStorage.setItem(K.voice, this.value); }catch(e){}
+    speak("语音播报测试");
+  });
+  $("btnTest").addEventListener("click", function(){ speak("十、九、八、七、六、五、四、三、二、一"); });
+  $("btnRefresh").addEventListener("click", function(){ loadVoices(); toast("已重新读取系统语音列表"); });
+
+  [["rate","rateV"],["pitch","pitchV"],["vol","volV"]].forEach(function(p){
+    $(p[0]).addEventListener("input", function(){
+      CFG[p[0]] = +this.value;
+      $(p[1]).textContent = (+this.value).toFixed(1);
+      saveCfg();
+    });
+  });
+  $("mode").addEventListener("change", function(){ CFG.mode = this.value; saveCfg(); });
+  $("endText").addEventListener("input", function(){ CFG.endText = this.value.trim(); saveCfg(); });
+  [["swStart","swStart"],["swBeep","swBeep"],["swVib","swVib"],["swWake","swWake"]].forEach(function(p){
+    $(p[0]).addEventListener("change", function(){
+      CFG[p[1]] = this.checked; saveCfg();
+      if (p[1] === "swWake" && !this.checked) wakeOff();
+    });
+  });
+
+  function applyCfg(){
+    $("rate").value = CFG.rate; $("rateV").textContent = (+CFG.rate).toFixed(1);
+    $("pitch").value = CFG.pitch; $("pitchV").textContent = (+CFG.pitch).toFixed(1);
+    $("vol").value = CFG.vol; $("volV").textContent = (+CFG.vol).toFixed(1);
+    $("mode").value = CFG.mode;
+    $("endText").value = CFG.endText;
+    $("swStart").checked = !!CFG.swStart;
+    $("swBeep").checked = !!CFG.swBeep;
+    $("swVib").checked = !!CFG.swVib;
+    $("swWake").checked = !!CFG.swWake;
+  }
+  applyCfg();
+
+  /* ---------------- 初始化 ---------------- */
+  var initSec = 60;
+  try{ initSec = parseInt(localStorage.getItem(K.time) || "60", 10) || 60; }catch(e){}
+  setSec(initSec);
+  render(readSec() * 1000);
+  updateButtons();
+
+  /* ---------------- PWA ---------------- */
+  var deferred = null;
+  window.addEventListener("beforeinstallprompt", function(e){
+    e.preventDefault(); deferred = e;
+    $("installBtn").style.display = "flex";
+  });
+  $("installBtn").addEventListener("click", function(){
+    if (!deferred) return;
+    deferred.prompt();
+    deferred.userChoice.then(function(){ deferred = null; $("installBtn").style.display = "none"; });
+  });
+  if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0){
+    window.addEventListener("load", function(){
+      navigator.serviceWorker.register("sw.js").catch(function(){});
+    });
+  }
+})();
+</script>
+</body>
+</html>
